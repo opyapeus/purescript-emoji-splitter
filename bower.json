@@ -1,5 +1,11 @@
 {
   "name": "purescript-emoji-splitter",
+  "license": "MIT",
+  "description": "Split emojis into emoji list.",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/opyapeus/purescript-emoji-splitter.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
