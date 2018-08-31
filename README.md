@@ -10,6 +10,9 @@ Split emojis into emoji list.
 (Right ["😍", "🏳️‍🌈", "👨🏻‍🌾", "☝🏿", "👨‍👩‍👧‍👧", "♨️"])
 ```
 
+Reference:
+[UTS #51: Unicode Emoji #EBNF_and_Regex](http://unicode.org/reports/tr51/#EBNF_and_Regex)
+
 ## Installation
 
 ```sh
