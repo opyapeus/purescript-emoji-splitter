@@ -8,7 +8,7 @@ import Prelude
 import Data.Array (foldMap)
 import Data.Either (Either(..))
 import Data.Enum (fromEnum)
-import Data.List (List(..), fromFoldable, toUnfoldable)
+import Data.List (List(..), fromFoldable, toUnfoldable, (:))
 import Data.String (CodePoint, singleton, toCodePointArray)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -56,53 +56,53 @@ parse es = case consume es of
 
 consume :: List EmojiElement -> Either String (Tuple (List CodePoint) (List EmojiElement))
 -- Regional Indicator
-consume (Cons (RI a) (Cons (RI b) xs))
-  = Right $ Tuple (Cons a (Cons b Nil)) xs
+consume ((RI a):(RI b):xs)
+  = Right $ Tuple (a:b:Nil) xs
 -- ZWJ Sequence
 -- 8
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) (Cons (EVS d) (Cons (ZWJ e) (Cons (E f) (Cons (ZWJ g) (Cons (E h) xs))))))))  -- ex: kiss: woman, man
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e (Cons f (Cons g (Cons h Nil)))))))) xs
+consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):(ZWJ g):(E h):xs) -- ex: kiss: woman, man
+  = Right $ Tuple (a:b:c:d:e:f:g:h:Nil) xs
 -- 7
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) (Cons (ZWJ d) (Cons (E e) (Cons (ZWJ f) (Cons (E g) xs))))))) -- ex: family: man, woman, girl, boy
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e (Cons f (Cons g Nil))))))) xs
-consume (Cons (E a) (Cons (T b) (Cons (T c) (Cons (T d) (Cons (T e) (Cons (T f) (Cons (TT g) xs))))))) -- ex: Emoji_Tag_Sequence; England
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e (Cons f (Cons g Nil))))))) xs
+consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):(ZWJ f):(E g):xs) -- ex: family: man, woman, girl, boy
+  = Right $ Tuple (a:b:c:d:e:f:g:Nil) xs
+consume ((E a):(T b):(T c):(T d):(T e):(T f):(TT g):xs) -- ex: Emoji_Tag_Sequence; England
+  = Right $ Tuple (a:b:c:d:e:f:g:Nil) xs
 -- 6
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) (Cons (EVS d) (Cons (ZWJ e) (Cons (E f) xs)))))) -- ex: couple with heart: woman, man
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e (Cons f Nil)))))) xs
+consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):xs) -- ex: couple with heart: woman, man
+  = Right $ Tuple (a:b:c:d:e:f:Nil) xs
 -- 5
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) (Cons (ZWJ d) (Cons (E e) xs))))) -- ex: family: man, boy, boy
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e Nil))))) xs
-consume (Cons (E a) (Cons (EM b) (Cons (ZWJ c) (Cons (E d) (Cons (EVS e) xs))))) -- ex: man health worker: light skin tone
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e Nil))))) xs
-consume (Cons (E a) (Cons (EVS b) (Cons (ZWJ c) (Cons (E d) (Cons (EVS e) xs))))) -- ex: eye in speech bubble 
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d (Cons e Nil))))) xs
+consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):xs) -- ex: family: man, boy, boy
+  = Right $ Tuple (a:b:c:d:e:Nil) xs
+consume ((E a):(EM b):(ZWJ c):(E d):(EVS e):xs) -- ex: man health worker: light skin tone
+  = Right $ Tuple (a:b:c:d:e:Nil) xs
+consume ((E a):(EVS b):(ZWJ c):(E d):(EVS e):xs) -- ex: eye in speech bubble 
+  = Right $ Tuple (a:b:c:d:e:Nil) xs
 -- 4
-consume (Cons (E a) (Cons (EM b) (Cons (ZWJ c) (Cons (E d) xs)))) -- ex: man farmer: light skin tone
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d Nil)))) xs
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) (Cons (EVS d) xs)))) -- ex: man health worker
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d Nil)))) xs
-consume (Cons (E a) (Cons (EVS b) (Cons (ZWJ c) (Cons (E d) xs)))) -- ex: rainbow flag
-  = Right $ Tuple (Cons a (Cons b (Cons c (Cons d Nil)))) xs
+consume ((E a):(EM b):(ZWJ c):(E d):xs) -- ex: man farmer: light skin tone
+  = Right $ Tuple (a:b:c:d:Nil) xs
+consume ((E a):(ZWJ b):(E c):(EVS d):xs) -- ex: man health worker
+  = Right $ Tuple (a:b:c:d:Nil) xs
+consume ((E a):(EVS b):(ZWJ c):(E d):xs) -- ex: rainbow flag
+  = Right $ Tuple (a:b:c:d:Nil) xs
 -- 3
-consume (Cons (E a) (Cons (ZWJ b) (Cons (E c) xs))) -- ex: man farmer
-  = Right $ Tuple (Cons a (Cons b (Cons c Nil))) xs
+consume ((E a):(ZWJ b):(E c):xs) -- ex: man farmer
+  = Right $ Tuple (a:b:c:Nil) xs
 -- Sequence
 -- 3
-consume (Cons (E a) (Cons (EVS b) (Cons (EK c) xs))) -- ex: keycap
-  = Right $ Tuple (Cons a (Cons b (Cons c Nil))) xs
+consume ((E a):(EVS b):(EK c):xs) -- ex: keycap
+  = Right $ Tuple (a:b:c:Nil) xs
 -- 2
-consume (Cons (E a) (Cons (EVS b) xs)) -- ex: NUMBER SIGN
-  = Right $ Tuple (Cons a (Cons b Nil)) xs
-consume (Cons (E a) (Cons (EM b) xs)) -- ex: index pointing up: light skin tone
-  = Right $ Tuple (Cons a (Cons b Nil)) xs
+consume ((E a):(EVS b):xs) -- ex: NUMBER SIGN
+  = Right $ Tuple (a:b:Nil) xs
+consume ((E a):(EM b):xs) -- ex: index pointing up: light skin tone
+  = Right $ Tuple (a:b:Nil) xs
 -- single
-consume (Cons (E a) xs) -- ex: grinning face
-  = Right $ Tuple (Cons a Nil) xs
+consume ((E a):xs) -- ex: grinning face
+  = Right $ Tuple (a:Nil) xs
 -- end
 consume Nil = Right $ Tuple Nil Nil
 -- not match
-consume (Cons e _) = Left $ "start with " <> show e <> " is not match."
+consume (e:_) = Left $ "start with " <> show e <> " is not match."
 
 inEq :: Int -> Int -> Int -> Boolean
 inEq low high i = low <= i && i <= high
