@@ -63,44 +63,32 @@ consume :: List EmojiElement -> Either ErrorMsg ParseResult
 consume ((RI a):(RI b):xs)
   = Right { parsed: fromCodePointArray [a, b], remains: xs }
 -- ZWJ Sequence
--- 8
-consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):(ZWJ g):(E h):xs) -- ex: kiss: woman, man
-  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g, h], remains: xs }
--- 7
-consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):(ZWJ f):(E g):xs) -- ex: family: man, woman, girl, boy
-  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs }
-consume ((E a):(T b):(T c):(T d):(T e):(T f):(TT g):xs) -- ex: Emoji_Tag_Sequence; England
-  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs }
--- 6
-consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):xs) -- ex: couple with heart: woman, man
-  = Right { parsed: fromCodePointArray [a, b, c, d, e, f], remains: xs }
--- 5
-consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):xs) -- ex: family: man, boy, boy
-  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
-consume ((E a):(EM b):(ZWJ c):(E d):(EVS e):xs) -- ex: man health worker: light skin tone
-  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
-consume ((E a):(EVS b):(ZWJ c):(E d):(EVS e):xs) -- ex: eye in speech bubble 
-  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
--- 4
-consume ((E a):(EM b):(ZWJ c):(E d):xs) -- ex: man farmer: light skin tone
-  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
-consume ((E a):(ZWJ b):(E c):(EVS d):xs) -- ex: man health worker
-  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
-consume ((E a):(EVS b):(ZWJ c):(E d):xs) -- ex: rainbow flag
-  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
--- 3
+consume ((E a):(T b):(T c):(T d):xs) = case xs of
+  (T e):(T f):(TT g):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs' } -- ex: Emoji_Tag_Sequence; England
+  _ -> Left $ "next expects Tags"
+consume ((E a):(ZWJ b):(E c):(ZWJ d):xs) = case xs of
+  (E e):(ZWJ f):(E g):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs' } -- ex: family: man, woman, girl, boy
+  (E e):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs' } -- ex: family: man, boy, boy
+  _ -> Left $ "next expects Emoji"
+consume ((E a):(EM b):(ZWJ c):(E d):xs) = case xs of
+  (EVS e):xs' ->Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs' } -- ex: man health worker: light skin tone
+  _ -> Right { parsed: fromCodePointArray [a, b, c, d], remains: xs } -- ex: man farmer: light skin tone
+consume ((E a):(ZWJ b):(E c):(EVS d):xs) = case xs of
+  (ZWJ e):(E f):(ZWJ g):(E h):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e, f, g, h], remains: xs' } -- ex: kiss: woman, man
+  (ZWJ e):(E f):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e, f], remains: xs' } -- ex: couple with heart: woman, man
+  _ -> Right { parsed: fromCodePointArray [a, b, c, d], remains: xs } -- ex: man health worker
+consume ((E a):(EVS b):(ZWJ c):(E d):xs) = case xs of
+  (EVS e):xs' -> Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs' } -- ex: eye in speech bubble
+  _ -> Right { parsed: fromCodePointArray [a, b, c, d], remains: xs } -- ex: rainbow flag
 consume ((E a):(ZWJ b):(E c):xs) -- ex: man farmer
   = Right { parsed: fromCodePointArray [a, b, c], remains: xs }
 -- Sequence
--- 3
 consume ((E a):(EVS b):(EK c):xs) -- ex: keycap
   = Right { parsed: fromCodePointArray [a, b, c], remains: xs }
--- 2
 consume ((E a):(EVS b):xs) -- ex: NUMBER SIGN
   = Right { parsed: fromCodePointArray [a, b], remains: xs }
 consume ((E a):(EM b):xs) -- ex: index pointing up: light skin tone
   = Right { parsed: fromCodePointArray [a, b], remains: xs }
--- single
 consume ((E a):xs) -- ex: grinning face
   = Right { parsed: singleton a, remains: xs }
 -- end
