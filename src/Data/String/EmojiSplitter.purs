@@ -5,13 +5,11 @@ module Data.String.EmojiSplitter
 
 import Prelude
 
-import Data.Array (foldMap)
 import Data.Either (Either(..))
 import Data.Enum (fromEnum)
 import Data.List (List(..), fromFoldable, toUnfoldable, (:))
-import Data.String (CodePoint, singleton, toCodePointArray)
+import Data.String (CodePoint, fromCodePointArray, singleton, toCodePointArray)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..))
 
 data EmojiElement
   = RI CodePoint -- RegionalIndicator
@@ -33,74 +31,80 @@ instance showEmojiElement :: Show EmojiElement where
   show (TT a) = "Term Tag: " <> show a
   show (E a) = "Emoji: " <> show a
 
+type ParseResult =
+  { parsed :: String
+  , remains :: List EmojiElement
+  }
+
+type ErrorMsg = String
+
 -- | Split emojis into emoji array
-splitEmoji :: String -> Either String (Array String)
-splitEmoji s = toUnfoldable <$> splitEmoji' s
+splitEmoji :: String -> Either ErrorMsg (Array String)
+splitEmoji = map toUnfoldable <<< splitEmoji'
 
 -- | Split emojis into emoji list
-splitEmoji' :: String -> Either String (List String)
-splitEmoji' s = map (foldMap singleton) <$> eCodePointLists
-  where
-    codePoints = toCodePointArray' s
-    eElems = traverse codeToElem codePoints
-    eCodePointLists = parse =<< eElems
+splitEmoji' :: String -> Either ErrorMsg (List String)
+splitEmoji' s = do
+  let codePoints = toCodePointArray' s
+  elems <- traverse codeToElem codePoints
+  parse elems
 
 toCodePointArray' :: String -> List CodePoint
 toCodePointArray' = fromFoldable <<< toCodePointArray
 
-parse :: List EmojiElement -> Either String (List (List CodePoint))
+parse :: List EmojiElement -> Either ErrorMsg (List String)
 parse es = case consume es of
-  Right (Tuple Nil es') -> Right Nil
-  Right (Tuple cs es') -> Cons <$> Right cs <*> parse es'
+  Right { parsed: s, remains: Nil } -> Right $ pure s
+  Right { parsed: s, remains: es' } -> Cons <$> Right s <*> parse es'
   Left msg -> Left msg
 
-consume :: List EmojiElement -> Either String (Tuple (List CodePoint) (List EmojiElement))
+consume :: List EmojiElement -> Either ErrorMsg ParseResult
 -- Regional Indicator
 consume ((RI a):(RI b):xs)
-  = Right $ Tuple (a:b:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b], remains: xs }
 -- ZWJ Sequence
 -- 8
 consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):(ZWJ g):(E h):xs) -- ex: kiss: woman, man
-  = Right $ Tuple (a:b:c:d:e:f:g:h:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g, h], remains: xs }
 -- 7
 consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):(ZWJ f):(E g):xs) -- ex: family: man, woman, girl, boy
-  = Right $ Tuple (a:b:c:d:e:f:g:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs }
 consume ((E a):(T b):(T c):(T d):(T e):(T f):(TT g):xs) -- ex: Emoji_Tag_Sequence; England
-  = Right $ Tuple (a:b:c:d:e:f:g:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e, f, g], remains: xs }
 -- 6
 consume ((E a):(ZWJ b):(E c):(EVS d):(ZWJ e):(E f):xs) -- ex: couple with heart: woman, man
-  = Right $ Tuple (a:b:c:d:e:f:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e, f], remains: xs }
 -- 5
 consume ((E a):(ZWJ b):(E c):(ZWJ d):(E e):xs) -- ex: family: man, boy, boy
-  = Right $ Tuple (a:b:c:d:e:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
 consume ((E a):(EM b):(ZWJ c):(E d):(EVS e):xs) -- ex: man health worker: light skin tone
-  = Right $ Tuple (a:b:c:d:e:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
 consume ((E a):(EVS b):(ZWJ c):(E d):(EVS e):xs) -- ex: eye in speech bubble 
-  = Right $ Tuple (a:b:c:d:e:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d, e], remains: xs }
 -- 4
 consume ((E a):(EM b):(ZWJ c):(E d):xs) -- ex: man farmer: light skin tone
-  = Right $ Tuple (a:b:c:d:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
 consume ((E a):(ZWJ b):(E c):(EVS d):xs) -- ex: man health worker
-  = Right $ Tuple (a:b:c:d:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
 consume ((E a):(EVS b):(ZWJ c):(E d):xs) -- ex: rainbow flag
-  = Right $ Tuple (a:b:c:d:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c, d], remains: xs }
 -- 3
 consume ((E a):(ZWJ b):(E c):xs) -- ex: man farmer
-  = Right $ Tuple (a:b:c:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c], remains: xs }
 -- Sequence
 -- 3
 consume ((E a):(EVS b):(EK c):xs) -- ex: keycap
-  = Right $ Tuple (a:b:c:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b, c], remains: xs }
 -- 2
 consume ((E a):(EVS b):xs) -- ex: NUMBER SIGN
-  = Right $ Tuple (a:b:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b], remains: xs }
 consume ((E a):(EM b):xs) -- ex: index pointing up: light skin tone
-  = Right $ Tuple (a:b:Nil) xs
+  = Right { parsed: fromCodePointArray [a, b], remains: xs }
 -- single
 consume ((E a):xs) -- ex: grinning face
-  = Right $ Tuple (a:Nil) xs
+  = Right { parsed: singleton a, remains: xs }
 -- end
-consume Nil = Right $ Tuple Nil Nil
+consume Nil = Right $ { parsed: "", remains: Nil }
 -- not match
 consume (e:_) = Left $ "start with " <> show e <> " is not match."
 
@@ -109,11 +113,10 @@ inEq low high i = low <= i && i <= high
 
 -- Ref: http://unicode.org/reports/tr51/#EBNF_and_Regex
 -- Ref: http://unicode.org/reports/tr51/#emoji_data
-codeToElem :: CodePoint -> Either String EmojiElement
-codeToElem c = f i'
+codeToElem :: CodePoint -> Either ErrorMsg EmojiElement
+codeToElem c = f $ fromEnum c
   where
-    i' = fromEnum c
-    f :: Int -> Either String EmojiElement
+    f :: Int -> Either ErrorMsg EmojiElement
     f i
       | inEq 0X1F1E6 0X1F1FF i = Right $ RI c
       | inEq 0X1F3FB 0X1F3FF i = Right $ EM c
