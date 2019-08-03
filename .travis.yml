@@ -2,7 +2,8 @@ node_js:
   - "node"
 language: node_js
 install:
-  - npm install -g purescript pulp bower
-  - bower install
+  - yarn
+  - yarn bowerpkg
 script:
-  - pulp test
+  - yarn build
+  - yarn test
